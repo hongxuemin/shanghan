@@ -33,9 +33,29 @@ textarea { width:100%; min-height:60px; border:1px solid #b9d4c8; border-radius:
 </style>
 </head>
 <body>
+
+<!-- 邀请码登录层 -->
+<div id="sxLoginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0e3b2e;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:system-ui">
+  <div style="background:#fff;border-radius:16px;padding:28px 24px;width:300px;box-shadow:0 8px 30px rgba(0,0,0,.3);text-align:center">
+    <div style="font-size:26px;margin-bottom:6px">📖</div>
+    <div style="font-size:18px;font-weight:bold;color:#1f5e4a;margin-bottom:4px">伤寒论随手用</div>
+    <div style="font-size:12px;color:#888;margin-bottom:18px">请输入购买时获得的邀请码</div>
+    <input id="sxInviteInput" type="text" placeholder="输入邀请码" style="width:100%;padding:10px 12px;border:1px solid #cfe3da;border-radius:8px;font-size:15px;text-align:center;box-sizing:border-box;margin-bottom:12px" />
+    <button id="sxInviteBtn" onclick="sxActivate()" style="width:100%;padding:11px;background:#1f8a5f;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:bold">激活使用</button>
+    <div id="sxInviteMsg" style="font-size:12px;color:#c0392b;margin-top:10px;min-height:16px"></div>
+    <div style="font-size:11px;color:#aaa;margin-top:14px;line-height:1.5">一人一码 · 绑定设备 · 仅供个人学习<br/>古籍条文学习参考，不构成诊疗建议</div>
+  </div>
+</div>
+<div id="sxAdminPanel" style="display:none;position:fixed;bottom:60px;right:16px;background:#fff;border:1px solid #cfe3da;border-radius:12px;padding:14px;z-index:9998;width:260px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:13px">
+  <div style="font-weight:bold;color:#1f5e4a;margin-bottom:8px">🔧 邀请码管理</div>
+  <div id="sxAdminList" style="max-height:180px;overflow-y:auto;margin-bottom:8px;font-size:12px;color:#555"></div>
+  <button onclick="sxGenCodes()" style="width:100%;padding:8px;background:#1f8a5f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:6px">生成 10 个新码</button>
+  <div id="sxAdminMsg" style="font-size:11px;color:#888;min-height:14px"></div>
+</div>
+
 <div class="header">
   <div style="font-size:12px;color:#a8e6cf">📚 古籍条文学习演示 · 非医疗建议 · 不构成诊疗</div>
-  <div class="t">📖 伤寒论随手用</div>
+  <div class="t" onclick="sxTitleTap()" style="cursor:default">📖 伤寒论随手用</div>
   <div class="s">条文检索 · 目录研习 · 方剂索引（离线版）</div>
 </div>
 
@@ -858,5 +878,110 @@ function showFangTiaowen(fi) {
 // 页面加载自动初始化
 showTab('mulu');
 </script>
+
+<script>
+/* ===== 伤寒论随手用 · 邀请码系统（一人一码·绑定设备） ===== */
+var SX_STORAGE_KEY = 'sx_auth_v1';
+var SX_CODES_KEY = 'sx_codes_v1';
+var SX_SEED = 'SHANGLUN2026';
+
+// 内置固定邀请码表（50个）
+var SX_INVITE_CODES = ["SH-295DNFHC", "SH-2ZN5Y56A", "SH-39RFTE98", "SH-3FGKE8LH", "SH-5VRGABD9", "SH-666TCRW3", "SH-6YBF2GX5", "SH-7WT4RUBX", "SH-9HPSPRR7", "SH-9VLNWSDZ", "SH-9VRW8TU6", "SH-BS34G9FL", "SH-D67D59GM", "SH-DM68JDSS", "SH-ELYYKS92", "SH-EY4FNZC4", "SH-F8NKQE8W", "SH-FH3DCJG5", "SH-H38MJVJR", "SH-HDJGSEMT", "SH-HL3V9PXA", "SH-HMSUTWPP", "SH-JMHULVXE", "SH-JP6NU69G", "SH-KBQNPXVP", "SH-KWJ28VDK", "SH-L6X5DRSU", "SH-LCPZ3W65", "SH-LNGJEEFH", "SH-MZM2UPZS", "SH-NHKABKV7", "SH-Q4QN9TVS", "SH-Q59JGA3F", "SH-QUSMMHSM", "SH-SCAP5295", "SH-TSJPLBTD", "SH-TXA59PGF", "SH-UD4ZLP99", "SH-UFXDNW9Y", "SH-VFLG7XYB", "SH-WJGWP5EU", "SH-WMSLSPXB", "SH-X6443GED", "SH-XB42R426", "SH-XC26WBHM", "SH-XVZSSX7W", "SH-Y7DAYUU8", "SH-Z6G7RZU9", "SH-ZSX9RTHA", "SH-ZTKYBF6A"];
+function sxLoadCodes() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SX_CODES_KEY)); } catch(e) {}
+  if (saved && saved.length > 0) return saved;
+  var codes = [];
+  for (var i = 0; i < SX_INVITE_CODES.length; i++) {
+    codes.push({code: SX_INVITE_CODES[i], used: false, device: null});
+  }
+  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
+  return codes;
+}
+
+// 生成新码（管理面板用，随机生成追加）
+function sxGenNewCodes() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var news = [];
+  for (var n = 0; n < 10; n++) {
+    var c = 'SH-';
+    for (var k = 0; k < 8; k++) c += chars[Math.floor(Math.random() * chars.length)];
+    news.push(c);
+  }
+  return news;
+}
+
+function sxGetDeviceId() {
+  var id = localStorage.getItem('sx_device_id');
+  if (!id) {
+    id = 'DEV-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    try { localStorage.setItem('sx_device_id', id); } catch(e) {}
+  }
+  return id;
+}
+
+function sxActivate() {
+  var input = document.getElementById('sxInviteInput');
+  var msg = document.getElementById('sxInviteMsg');
+  var code = (input.value || '').trim().toUpperCase();
+  if (!code) { msg.innerText = '请输入邀请码'; return; }
+  var codes = sxLoadCodes();
+  var found = null;
+  for (var i = 0; i < codes.length; i++) {
+    if (codes[i].code.toUpperCase() === code) { found = codes[i]; break; }
+  }
+  if (!found) { msg.innerText = '邀请码无效，请检查后重试'; return; }
+  if (found.used && found.device !== sxGetDeviceId()) {
+    msg.innerText = '该邀请码已在其他设备使用，请联系卖家'; return;
+  }
+  // 激活（首次或同设备）
+  found.used = true;
+  found.device = sxGetDeviceId();
+  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
+  try { localStorage.setItem(SX_STORAGE_KEY, JSON.stringify({activated: true, device: sxGetDeviceId(), code: code})); } catch(e) {}
+  document.getElementById('sxLoginOverlay').style.display = 'none';
+}
+
+function sxCheckAuth() {
+  var auth = null;
+  try { auth = JSON.parse(localStorage.getItem(SX_STORAGE_KEY)); } catch(e) {}
+  if (auth && auth.activated && auth.device === sxGetDeviceId()) {
+    document.getElementById('sxLoginOverlay').style.display = 'none';
+  }
+}
+
+/* 管理：连点标题 5 次显示面板 */
+var sxTitleClicks = 0;
+function sxTitleTap() {
+  sxTitleClicks++;
+  if (sxTitleClicks >= 5) {
+    sxTitleClicks = 0;
+    document.getElementById('sxAdminPanel').style.display = 'block';
+    sxRenderAdmin();
+  }
+  setTimeout(function(){ sxTitleClicks = 0; }, 3000);
+}
+function sxRenderAdmin() {
+  var codes = sxLoadCodes();
+  var el = document.getElementById('sxAdminList');
+  var h = '';
+  var usedCount = 0;
+  for (var i = 0; i < codes.length; i++) {
+    if (codes[i].used) usedCount++;
+    h += '<div>' + (codes[i].used ? '❌' : '✅') + ' <b>' + codes[i].code + '</b>' + (codes[i].used ? '（已用）' : '') + '</div>';
+  }
+  h += '<div style="margin-top:6px;color:#1f8a5f">已用 ' + usedCount + ' / 共 ' + codes.length + '</div>';
+  el.innerHTML = h;
+}
+function sxGenCodes() {
+  var codes = sxLoadCodes();
+  var news = sxGenNewCodes();
+  codes = codes.concat(news);
+  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
+  sxRenderAdmin();
+  document.getElementById('sxAdminMsg').innerText = '已生成 10 个新码';
+}
+</script>
+
 </body>
 </html>
