@@ -881,77 +881,222 @@ showTab('mulu');
 </script>
 
 <script>
-/* ===== 伤寒论随手用 · 邀请码系统（一人一码·绑定设备） ===== */
-var SX_STORAGE_KEY = 'sx_auth_v1';
-var SX_CODES_KEY = 'sx_codes_v1';
+/* ===== 伤寒论随手用 · 邀请码系统 v2（一人一码·绑定设备·防二次售卖） ===== */
+var SX_STORAGE_KEY = 'sx_auth_v2';
+var SX_CODES_KEY = 'sx_codes_v2';
+var SX_DEVICE_KEY = 'sx_device_v2';
 var SX_SEED = 'SHANGLUN2026';
+var SX_COOKIE_AUTH = 'sx_auth_v2';
+var SX_COOKIE_USED = 'sx_codes_v2';
+var SX_COOKIE_DEVICE = 'sx_device_v2';
 
-// 内置固定邀请码表（50个）
-var SX_INVITE_CODES = ["SH-295DNFHC", "SH-2ZN5Y56A", "SH-39RFTE98", "SH-3FGKE8LH", "SH-5VRGABD9", "SH-666TCRW3", "SH-6YBF2GX5", "SH-7WT4RUBX", "SH-9HPSPRR7", "SH-9VLNWSDZ", "SH-9VRW8TU6", "SH-BS34G9FL", "SH-D67D59GM", "SH-DM68JDSS", "SH-ELYYKS92", "SH-EY4FNZC4", "SH-F8NKQE8W", "SH-FH3DCJG5", "SH-H38MJVJR", "SH-HDJGSEMT", "SH-HL3V9PXA", "SH-HMSUTWPP", "SH-JMHULVXE", "SH-JP6NU69G", "SH-KBQNPXVP", "SH-KWJ28VDK", "SH-L6X5DRSU", "SH-LCPZ3W65", "SH-LNGJEEFH", "SH-MZM2UPZS", "SH-NHKABKV7", "SH-Q4QN9TVS", "SH-Q59JGA3F", "SH-QUSMMHSM", "SH-SCAP5295", "SH-TSJPLBTD", "SH-TXA59PGF", "SH-UD4ZLP99", "SH-UFXDNW9Y", "SH-VFLG7XYB", "SH-WJGWP5EU", "SH-WMSLSPXB", "SH-X6443GED", "SH-XB42R426", "SH-XC26WBHM", "SH-XVZSSX7W", "SH-Y7DAYUU8", "SH-Z6G7RZU9", "SH-ZSX9RTHA", "SH-ZTKYBF6A"];
-function sxLoadCodes() {
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem(SX_CODES_KEY)); } catch(e) {}
-  if (saved && saved.length > 0) return saved;
-  var codes = [];
-  for (var i = 0; i < SX_INVITE_CODES.length; i++) {
-    codes.push({code: SX_INVITE_CODES[i], used: false, device: null});
-  }
-  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
-  return codes;
+// 内置加盐哈希表（无明文码，防扒源码获取邀请码）
+var SX_INVITE_HASHES = [
+"2c7b93e587e7c88d0998f010d61c76836548beb234c1f90d65a41a05855c3845",
+"e80ac9edf577f3abf83c2af23bc98dc28148e1bdcfa289f98bae9246640f5850",
+"9358c75d3fc446faad7586726da94323f8359832414262b3bcc775a4b828db31",
+"39a5fd7f88a35819c566d749e929b178d19a57c8fa3c767e1cb45f69583ea396",
+"5fef8fe09fd1c8da3f129d7248dad8a046029f753b8e8609d763dc50450b6989",
+"fccadba6455b024283d36481688781e48621d88e0933db87a32c0443506de3c2",
+"efa4241bbd0b45aa1cb12445bbf62a677cb58407fef2662f453fe35d6b7dd0b5",
+"87c1fc5d35389fff77679896c64136dd15478e475603224e8cf66479f4dddde0",
+"cc7ca7ae8993e49cf970d64936a09e6055b962745a1f5419c0e1ab425b489623",
+"b2f33622bc2ac5175fdead44c88770dd46c45eafe0973708287209976bdc7695",
+"df1df7aeec662d3fb5f12785bce921ba1b1d93af7b3f033c8ff9391db79ea933",
+"3ade413f058e421def90b435881255c406bbd99b423837ad86d44162a95f1ea7",
+"b793b4016e3853a4e5912c7bc8ecc328fc8843b9cceb867ce46b703ae82e01a4",
+"97148594926ee7b16217cd67ce06085cdd50a19bf3c54d5a92e195bcaf6b90e5",
+"35c0837d0ab9eb476c201f994be964ad7b04bd6467f95216764cc3379ce5b2be",
+"a6221aa1f4f059bfea11ccbc2d964214c03ee0b859d1d847f9783f807b208dad",
+"152840827576558e37f48325c1b99fd14cc313662ffc79848dc1112b4c6df3a4",
+"05f6384b0d721232434edf49f44798ad6fa99f1c8bd7eb08aeba12f67daf147b",
+"3d73baa1abbc61ef35157180b8389e151dc0e8ca3d7cb8c5dbdafd63e52677c5",
+"02f495d5f225093823709848d15d228166b6e59f7040e9019732b1b735267fd1",
+"c769d43a2a7f01ab65fd6254af0668404c49eb4fe7e41b922b68c171462497b9",
+"46416184f675ddd98727207b23e2595b6dfab6cd02101769087b3863c7d4f848",
+"53bbb7913983e641d71be94db6ea4cc6267aabedc38cbefea3847cf5203a4c8f",
+"7998076731a9341dfaacd633168a76541240e126659105e5563bca09cbb569aa",
+"fa2c2b09b2392b90dd24bd58ddd7122f8abe3b7c664047a2500f193394d7f606",
+"ae16df149ad6339bf9c4b7b920644cc6a621daf2c23758ec26c4a5c01d82282f",
+"4c993780d5211f8e1ec17df5a35173d29099d46ba49a03fe2bf11c7d7d40e4a3",
+"2c9f839c56ca04a310a2bf6e72edeeb6ab6e8dfd57c009f594dc553d91bcd737",
+"7f40caf27cbee27ba421998654eb6c4b77a3cbc99b4c400059421a2d30d8947c",
+"0d9d0b19ac888caa799a520382de96bf917913e26fd82a825b126d743167520d",
+"5078df4bcb267cb732c6bccdde02545e81a09f8df171a60164cd0b417be33a4e",
+"70df569078a4155dfbbd7021fbca74967363b42908fd8a985f1018e6d9bf69c3",
+"4a61afffd0cf1f08f647200fa5c7c7a3b253b0d68511aa564bf3b26d5d397a2c",
+"a2c9d539ead0b5d40497e54cd00b4c3cd40ea81da5b5a889cee68ac0b7deda46",
+"68c887ecf96f28591074c7c378df8441c48ed99b94152d22579e65b36620471a",
+"9f081a8ab004e5cae0698749402875912de74b6b1282a449f70d4cf937403342",
+"73021ad4730250b3d0cf9b68523a662b81f5708df3ae5dc854ff4f5b71d62999",
+"747dcc6543c3dfa97b87a83443dfb6e97b68daa7d1e889bb4a3ec7e3b875f54d",
+"41b3084e454fd28c88dd5c1bb3ae2c0f884a87767adcc5e3772cfd580608ba99",
+"61b0cbe907b190912a28aea80c31f53c424f141041b382516f018222d9ddf18a",
+"753272ac1acd4796ad4a95556c038d3abe7589382f6b2ab563f3d384986f0327",
+"b01e8fc4a784a92da1f83b23015bc799f77a2eb3dad7598c1609819d7b65509b",
+"f35d8385eb99710f415eed46a7d4ed3e6a1a94cbdc08a300630c364400ad6f47",
+"504884dd881cfbc58593579fe020009256e6087b98eec56f870850fff6db23f1",
+"cc9b5056904d99ecd9f76da4460e78242fdf545886d8c18f17f051489881fa83",
+"e211566ec3e7ac1fbf91c8b95761b9d51e28ebf2095ace9b2ac47a54e2a69e6e",
+"34d2851e1e27d4170118915838d734743486ec67465421a978ba691ae5273008",
+"5d35f80c1adca57ae04101552124ea87110989ca1396f8e1bb77180d6e50d9f2",
+"354dce0f7230ac207f9999fc805bbf4c932321bd3ae0aca354696a4a7ebde2a7",
+"6d6a4e329bd1edd1cb7ae1c3c72ba2b45080eb5aa5a1c19e55b7845ffa207c96"
+];
+
+// ---------- Cookie 工具 ----------
+function sxSetCookie(name, value, days) {
+  try {
+    var expires = '';
+    if (days) {
+      var d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = '; expires=' + d.toUTCString();
+    }
+    document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/';
+  } catch (e) {}
+}
+function sxGetCookie(name) {
+  try {
+    var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch (e) { return null; }
 }
 
-// 生成新码（管理面板用，随机生成追加）
-function sxGenNewCodes() {
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var news = [];
-  for (var n = 0; n < 10; n++) {
-    var c = 'SH-';
-    for (var k = 0; k < 8; k++) c += chars[Math.floor(Math.random() * chars.length)];
-    news.push(c);
-  }
-  return news;
+// ---------- 激活记录五重持久化 ----------
+function sxSaveAuth(auth) {
+  var s = JSON.stringify(auth);
+  try { localStorage.setItem(SX_STORAGE_KEY, s); } catch (e) {}
+  try { sessionStorage.setItem(SX_STORAGE_KEY, s); } catch (e) {}
+  sxSetCookie(SX_COOKIE_AUTH, s, 3650);
+  try { window.name = 'sxauth:' + s; } catch (e) {}
+}
+function sxLoadAuth() {
+  var s = null;
+  try { s = localStorage.getItem(SX_STORAGE_KEY); } catch (e) {}
+  if (!s) { try { s = sessionStorage.getItem(SX_STORAGE_KEY); } catch (e) {} }
+  if (!s) { s = sxGetCookie(SX_COOKIE_AUTH); }
+  if (!s) { try { var n = window.name || ''; if (n.indexOf('sxauth:') === 0) s = n.slice(7); } catch (e) {} }
+  if (!s) return null;
+  try { return JSON.parse(s); } catch (e) { return null; }
 }
 
+// ---------- 已用码记录（防二次售卖核心） ----------
+function sxLoadUsed() {
+  var s = null;
+  try { s = localStorage.getItem(SX_CODES_KEY); } catch (e) {}
+  if (!s) { try { s = sessionStorage.getItem(SX_CODES_KEY); } catch (e) {} }
+  if (!s) { s = sxGetCookie(SX_COOKIE_USED); }
+  if (!s) return {};
+  try { return JSON.parse(s); } catch (e) { return {}; }
+}
+function sxSaveUsed(used) {
+  var s = JSON.stringify(used);
+  try { localStorage.setItem(SX_CODES_KEY, s); } catch (e) {}
+  try { sessionStorage.setItem(SX_CODES_KEY, s); } catch (e) {}
+  sxSetCookie(SX_COOKIE_USED, s, 3650);
+}
+
+// ---------- 设备 ID（localStorage+cookie 双存） ----------
 function sxGetDeviceId() {
-  var id = localStorage.getItem('sx_device_id');
+  var id = null;
+  try { id = localStorage.getItem(SX_DEVICE_KEY); } catch (e) {}
+  if (!id) { id = sxGetCookie(SX_COOKIE_DEVICE); }
   if (!id) {
-    id = 'DEV-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-    try { localStorage.setItem('sx_device_id', id); } catch(e) {}
+    var fp = '';
+    try { fp = navigator.userAgent + '|' + (screen.width) + 'x' + (screen.height) + '|' + (navigator.language || ''); } catch (e) {}
+    id = 'DEV-' + sxHash(fp) + '-' + Math.random().toString(36).slice(2, 8);
+    try { localStorage.setItem(SX_DEVICE_KEY, id); } catch (e) {}
+    sxSetCookie(SX_COOKIE_DEVICE, id, 3650);
   }
   return id;
 }
+function sxHash(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
 
-function sxActivate() {
+// ---------- 加盐 SHA-256（crypto.subtle） ----------
+async function sxHashCode(code) {
+  var data = new TextEncoder().encode(SX_SEED + '|' + code.toUpperCase());
+  var buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+// ---------- 激活 ----------
+async function sxActivate() {
   var input = document.getElementById('sxInviteInput');
   var msg = document.getElementById('sxInviteMsg');
   var code = (input.value || '').trim().toUpperCase();
   if (!code) { msg.innerText = '请输入邀请码'; return; }
-  var codes = sxLoadCodes();
-  var found = null;
-  for (var i = 0; i < codes.length; i++) {
-    if (codes[i].code.toUpperCase() === code) { found = codes[i]; break; }
-  }
-  if (!found) { msg.innerText = '邀请码无效，请检查后重试'; return; }
-  if (found.used && found.device !== sxGetDeviceId()) {
+  if (!crypto || !crypto.subtle) { msg.innerText = '当前环境不支持激活，请用浏览器打开'; return; }
+  var dev = sxGetDeviceId();
+  // 1. 先查已用记录（同设备放行，异设备拒绝）
+  var used = sxLoadUsed();
+  if (used[code]) {
+    if (used[code] === dev) {
+      sxSaveAuth({ activated: true, device: dev, code: code });
+      document.getElementById('sxLoginOverlay').style.display = 'none';
+      msg.innerText = '';
+      return;
+    }
     msg.innerText = '该邀请码已在其他设备使用，请联系卖家'; return;
   }
-  // 激活（首次或同设备）
-  found.used = true;
-  found.device = sxGetDeviceId();
-  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
-  try { localStorage.setItem(SX_STORAGE_KEY, JSON.stringify({activated: true, device: sxGetDeviceId(), code: code})); } catch(e) {}
+  // 2. 校验哈希
+  var h = await sxHashCode(code);
+  var valid = false;
+  for (var i = 0; i < SX_INVITE_HASHES.length; i++) {
+    if (SX_INVITE_HASHES[i] === h) { valid = true; break; }
+  }
+  if (!valid) { msg.innerText = '邀请码无效，请检查后重试'; return; }
+  // 3. 激活：标记已用 + 绑定设备 + 记录序号
+  used[code] = dev;
+  used['_n_' + code] = (function () {
+    for (var i = 0; i < SX_INVITE_HASHES.length; i++) if (SX_INVITE_HASHES[i] === h) return i + 1;
+    return 0;
+  })();
+  sxSaveUsed(used);
+  sxSaveAuth({ activated: true, device: dev, code: code });
   document.getElementById('sxLoginOverlay').style.display = 'none';
+  msg.innerText = '';
 }
 
+// ---------- 自动检查登录态（打开即跳过登录 + v1 迁移） ----------
 function sxCheckAuth() {
-  var auth = null;
-  try { auth = JSON.parse(localStorage.getItem(SX_STORAGE_KEY)); } catch(e) {}
-  if (auth && auth.activated && auth.device === sxGetDeviceId()) {
+  var auth = sxLoadAuth();
+  if (auth && auth.activated) {
+    // 设备匹配直接放行；设备不匹配但码是本机已用的也放行（防误锁）
+    var dev = sxGetDeviceId();
+    if (auth.device === dev) {
+      document.getElementById('sxLoginOverlay').style.display = 'none';
+      return;
+    }
+    // 设备 ID 变了（清了 localStorage 但 cookie 也丢了）：查已用记录
+    var used = sxLoadUsed();
+    if (auth.code && used[auth.code] === dev) {
+      document.getElementById('sxLoginOverlay').style.display = 'none';
+      return;
+    }
+  }
+  // v1 旧版迁移：有 sx_auth_v1 视为已激活（老用户不重新激活）
+  var old = null;
+  try { old = JSON.parse(localStorage.getItem('sx_auth_v1')); } catch (e) {}
+  if (!old) { try { old = JSON.parse(sxGetCookie('sx_auth_v1') || 'null'); } catch (e) {} }
+  if (old && old.activated) {
+    var oldDev = old.device || sxGetDeviceId();
+    sxSaveAuth({ activated: true, device: oldDev, code: old.code || '' });
+    if (old.code) {
+      var used2 = sxLoadUsed();
+      if (!used2[old.code]) { used2[old.code] = oldDev; sxSaveUsed(used2); }
+    }
     document.getElementById('sxLoginOverlay').style.display = 'none';
   }
 }
 
-/* 管理：连点标题 5 次显示面板 */
+/* 管理：连点标题 5 次显示面板（显示哈希表使用状态，不显示码本身防泄密） */
 var sxTitleClicks = 0;
 function sxTitleTap() {
   sxTitleClicks++;
@@ -960,28 +1105,31 @@ function sxTitleTap() {
     document.getElementById('sxAdminPanel').style.display = 'block';
     sxRenderAdmin();
   }
-  setTimeout(function(){ sxTitleClicks = 0; }, 3000);
+  setTimeout(function () { sxTitleClicks = 0; }, 3000);
 }
 function sxRenderAdmin() {
-  var codes = sxLoadCodes();
+  var used = sxLoadUsed();
   var el = document.getElementById('sxAdminList');
   var h = '';
   var usedCount = 0;
-  for (var i = 0; i < codes.length; i++) {
-    if (codes[i].used) usedCount++;
-    h += '<div>' + (codes[i].used ? '❌' : '✅') + ' <b>' + codes[i].code + '</b>' + (codes[i].used ? '（已用）' : '') + '</div>';
+  for (var i = 0; i < SX_INVITE_HASHES.length; i++) {
+    var num = i + 1;
+    var isUsed = false;
+    for (var k in used) {
+      if (k.indexOf('_n_') === 0 && used[k] === num) { isUsed = true; break; }
+    }
+    if (isUsed) usedCount++;
+    h += '<div>' + (isUsed ? '❌' : '✅') + ' 码 #' + num + '</div>';
   }
-  h += '<div style="margin-top:6px;color:#1f8a5f">已用 ' + usedCount + ' / 共 ' + codes.length + '</div>';
+  h += '<div style="margin-top:6px;color:#1f8a5f">已用 ' + usedCount + ' / ' + SX_INVITE_HASHES.length + '</div>';
   el.innerHTML = h;
 }
 function sxGenCodes() {
-  var codes = sxLoadCodes();
-  var news = sxGenNewCodes();
-  codes = codes.concat(news);
-  try { localStorage.setItem(SX_CODES_KEY, JSON.stringify(codes)); } catch(e) {}
-  sxRenderAdmin();
-  document.getElementById('sxAdminMsg').innerText = '已生成 10 个新码';
+  document.getElementById('sxAdminMsg').innerText = '内置码表已哈希保护，新码需在源码中追加哈希';
 }
+
+// 页面加载自动检查登录
+sxCheckAuth();
 </script>
 
 </body>
